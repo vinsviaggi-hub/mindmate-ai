@@ -1,26 +1,31 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 
 type Msg = { sender: "ai" | "user"; text: string };
 
+const BMC_URL = "https://www.buymeacoffee.com/coachvins"; // <-- il tuo link
+
 export default function Home() {
-  // Stato chat
   const [messages, setMessages] = useState<Msg[]>([
-    { sender: "ai", text: "Ciao 👋 sono MindMate, il tuo coach motivazionale. Come ti senti oggi?" },
+    {
+      sender: "ai",
+      text:
+        "Ciao 👋 sono MindMate, il tuo coach motivazionale personale. Dimmi come ti senti e partiamo da lì! 💪",
+    },
   ]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
-  const endRef = useRef<HTMLDivElement | null>(null);
+  const [cardVisible, setCardVisible] = useState(false);
+  const inputRef = useRef<HTMLInputElement | null>(null);
 
-  // Auto–scroll all’ultimo messaggio
   useEffect(() => {
-    endRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages, loading]);
+    const t = setTimeout(() => setCardVisible(true), 120);
+    return () => clearTimeout(t);
+  }, []);
 
-  // Invia messaggio
-  async function sendMessage(e?: React.FormEvent<HTMLFormElement>) {
-    e?.preventDefault();
+  async function sendMessage(e?: React.FormEvent) {
+    if (e) e.preventDefault();
     if (!input.trim() || loading) return;
 
     const userMsg: Msg = { sender: "user", text: input.trim() };
@@ -36,301 +41,271 @@ export default function Home() {
       });
 
       const data = await res.json();
-      const reply = (data?.reply as string) || "Posso aiutarti in altro modo? 💡";
-
-      setMessages((prev) => [...prev, { sender: "ai", text: reply }]);
-    } catch (_) {
-      setMessages((prev) => [...prev, { sender: "ai", text: "Errore di connessione 😅 Riprova tra poco." }]);
+      const aiMsg: Msg = { sender: "ai", text: data.reply || "Posso aiutarti in altro modo? 😊" };
+      setMessages((prev) => [...prev, aiMsg]);
+    } catch {
+      setMessages((prev) => [
+        ...prev,
+        { sender: "ai", text: "Ops! Si è verificato un errore di connessione 😅" },
+      ]);
     } finally {
       setLoading(false);
+      inputRef.current?.focus();
     }
   }
 
+  // Piccolo componente Logo che usa file locale se presente, altrimenti emoji
+  function Logo() {
+    const [exists, setExists] = useState(false);
+    useEffect(() => {
+      // Tentativo veloce di verificare se esiste /logo.svg o /logo.png
+      Promise.any([
+        fetch("/logo.svg", { method: "HEAD" }),
+        fetch("/logo.png", { method: "HEAD" }),
+      ])
+        .then((r) => setExists(r.ok))
+        .catch(() => setExists(false));
+    }, []);
+
+    if (!exists) {
+      return (
+        <div aria-label="MindMate logo" style={{ fontSize: 28, lineHeight: 1 }}>
+          ☁️
+        </div>
+      );
+    }
+    // Preferisci SVG se c’è
+    return (
+      <img
+        src="/logo.svg"
+        onError={(e) => ((e.currentTarget.src = "/logo.png"))}
+        alt="MindMate logo"
+        width={28}
+        height={28}
+        style={{ display: "block" }}
+      />
+    );
+  }
+
   return (
-    <main className="page">
-      {/* Decorazioni ai lati */}
-      <div className="orb orb-left" aria-hidden />
-      <div className="orb orb-right" aria-hidden />
-
-      {/* Card chat */}
-      <section className="card" role="region" aria-label="MindMate AI chat">
-        <header className="card__head">
-          <div className="logo">💭</div>
-          <div className="titles">
-            <h1>MindMate AI</h1>
-            <p>Il tuo coach motivazionale personale</p>
+    <main
+      style={{
+        minHeight: "100svh",
+        display: "grid",
+        placeItems: "center",
+        padding: 16,
+        background:
+          "radial-gradient(1200px 600px at 50% -10%, #7fb3ff55 0%, transparent 60%), radial-gradient(900px 500px at 50% 110%, #76e6c655 0%, transparent 55%), linear-gradient(180deg, #edeaff 0%, #e9f4ff 60%, #eefaf4 100%)",
+      }}
+    >
+      <div
+        style={{
+          width: "100%",
+          maxWidth: 560,
+          background: "linear-gradient(180deg, #ffffff 0%, #f8fbff 100%)",
+          borderRadius: 16,
+          boxShadow:
+            "0 1px 2px rgba(0,0,0,.05), 0 8px 20px rgba(64,112,214,.15), inset 0 0 0 1px rgba(14, 30, 64, .04)",
+          padding: 18,
+          opacity: cardVisible ? 1 : 0,
+          transform: cardVisible ? "translateY(0)" : "translateY(10px)",
+          transition: "opacity .5s ease, transform .5s ease",
+        }}
+      >
+        {/* Header */}
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 10,
+            marginBottom: 8,
+          }}
+        >
+          <div
+            style={{
+              width: 36,
+              height: 36,
+              borderRadius: 10,
+              display: "grid",
+              placeItems: "center",
+              background:
+                "linear-gradient(135deg, #ffe082 0%, #ffc400 60%, #ffb300 100%)",
+              boxShadow: "inset 0 0 0 1px rgba(0,0,0,.04)",
+            }}
+          >
+            <Logo />
           </div>
-        </header>
 
-        <div className="chat" role="log" aria-live="polite">
-          {messages.map((m, i) => (
-            <div key={i} className={`row ${m.sender}`}>
-              <div className="avatar" aria-hidden>
-                {m.sender === "ai" ? "✨" : "🙂"}
-              </div>
-              <div className="bubble">{m.text}</div>
+          <div style={{ display: "grid", gap: 2 }}>
+            <div
+              style={{
+                fontWeight: 700,
+                letterSpacing: 0.2,
+                color: "#1d2b4d",
+              }}
+            >
+              MindMate AI
             </div>
-          ))}
-
-          {loading && (
-            <div className="row ai">
-              <div className="avatar" aria-hidden>✨</div>
-              <div className="bubble typing">
-                <span className="dot" />
-                <span className="dot" />
-                <span className="dot" />
-              </div>
+            <div
+              style={{
+                fontSize: 12,
+                color: "#5a6a85",
+              }}
+            >
+              Il tuo coach motivazionale personale
             </div>
-          )}
-
-          <div ref={endRef} />
+          </div>
         </div>
 
-        <form className="form" onSubmit={sendMessage}>
+        {/* Chat area */}
+        <div
+          style={{
+            height: 300,
+            overflowY: "auto",
+            borderRadius: 10,
+            border: "1px solid #e6eefb",
+            background: "#fff",
+            padding: 12,
+            marginTop: 10,
+            boxShadow: "inset 0 1px 0 #f6f9ff",
+          }}
+        >
+          {messages.map((m, i) => (
+            <div
+              key={i}
+              style={{
+                display: "flex",
+                justifyContent: m.sender === "user" ? "flex-end" : "flex-start",
+                margin: "8px 0",
+              }}
+            >
+              <div
+                style={{
+                  maxWidth: "85%",
+                  background:
+                    m.sender === "user" ? "#1a73e8" : "#f4f7ff",
+                  color: m.sender === "user" ? "#fff" : "#1d2b4d",
+                  border: m.sender === "user" ? "none" : "1px solid #e6eefb",
+                  padding: "8px 10px",
+                  borderRadius:
+                    m.sender === "user"
+                      ? "12px 12px 4px 12px"
+                      : "12px 12px 12px 4px",
+                  fontSize: 14,
+                  lineHeight: 1.4,
+                  boxShadow:
+                    m.sender === "user"
+                      ? "0 1px 0 rgba(0,0,0,.06)"
+                      : "0 1px 0 rgba(0,0,0,.02)",
+                }}
+              >
+                {m.text}
+              </div>
+            </div>
+          ))}
+          {loading && (
+            <div style={{ color: "#6b7a90", fontSize: 13, padding: "6px 2px" }}>
+              Sto pensando…
+            </div>
+          )}
+        </div>
+
+        {/* Input + send */}
+        <form
+          onSubmit={sendMessage}
+          style={{
+            display: "grid",
+            gridTemplateColumns: "1fr auto",
+            gap: 8,
+            marginTop: 10,
+          }}
+        >
           <input
+            ref={inputRef}
             value={input}
             onChange={(e) => setInput(e.target.value)}
             placeholder="Scrivi qui…"
-            aria-label="Scrivi il tuo messaggio"
-            disabled={loading}
+            aria-label="Scrivi il messaggio"
+            style={{
+              width: "100%",
+              height: 38,
+              borderRadius: 10,
+              padding: "0 12px",
+              border: "1px solid #dbe7ff",
+              outline: "none",
+              fontSize: 14,
+              background: "#ffffff",
+              boxShadow:
+                "0 0 0 0 rgba(26,115,232,0), inset 0 1px 0 #f6f9ff",
+            }}
+            onFocus={(e) => {
+              e.currentTarget.style.boxShadow =
+                "0 0 0 3px rgba(26,115,232,.15), inset 0 1px 0 #f6f9ff";
+              e.currentTarget.style.borderColor = "#b9d3ff";
+            }}
+            onBlur={(e) => {
+              e.currentTarget.style.boxShadow =
+                "0 0 0 0 rgba(26,115,232,0), inset 0 1px 0 #f6f9ff";
+              e.currentTarget.style.borderColor = "#dbe7ff";
+            }}
           />
-          <button type="submit" disabled={loading}>
-            {loading ? "Invio…" : "Invia"}
+          <button
+            type="submit"
+            disabled={loading}
+            style={{
+              height: 38,
+              padding: "0 14px",
+              borderRadius: 10,
+              border: "none",
+              cursor: loading ? "not-allowed" : "pointer",
+              background:
+                "linear-gradient(180deg, #1a73e8 0%, #1967d2 100%)",
+              color: "#fff",
+              fontWeight: 600,
+              boxShadow: "0 1px 0 rgba(0,0,0,.06)",
+            }}
+          >
+            {loading ? "…" : "invia"}
           </button>
         </form>
 
-        <a
-          className="coffee"
-          href="https://www.buymeacoffee.com/coachvins"
-          target="_blank"
-          rel="noopener noreferrer"
-          aria-label="Sostieni il progetto su Buy Me a Coffee"
-        >
-          ☕ Buy me a coffee
-        </a>
+        {/* CTA + credit */}
+        <div style={{ display: "grid", gap: 8, marginTop: 12 }}>
+          <a
+            href={BMC_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 8,
+              justifyContent: "center",
+              height: 40,
+              borderRadius: 10,
+              background:
+                "linear-gradient(135deg, #ffe082 0%, #ffc400 60%, #ffb300 100%)",
+              color: "#1d2b4d",
+              textDecoration: "none",
+              fontWeight: 700,
+              border: "1px solid #f7c948",
+              boxShadow: "0 2px 0 #e2b100, 0 4px 12px rgba(255,193,7,.25)",
+            }}
+          >
+            ☕ Buy me a coffee
+          </a>
 
-        <footer className="foot">
-          Creato da <strong>Coach Vins</strong> · MindMate AI
-        </footer>
-      </section>
-
-      {/* STILI */}
-      <style jsx global>{`
-        :root {
-          --bg1: #a78bfa; /* viola */
-          --bg2: #60a5fa; /* azzurro */
-          --card: #ffffffee;
-          --border: #e8e8ef;
-          --text: #0f172a;
-          --muted: #6b7280;
-          --ai: #eef2ff;
-          --user: #ecfeff;
-          --btn: #2563eb;
-          --btnText: #fff;
-          --shadow: 0 20px 60px rgba(15, 23, 42, 0.18);
-        }
-
-        html, body, .page {
-          height: 100%;
-        }
-
-        body {
-          margin: 0;
-          color: var(--text);
-          font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue",
-            Arial, "Apple Color Emoji", "Segoe UI Emoji";
-          background: radial-gradient(1200px 700px at 50% -10%, rgba(255,255,255,0.45), transparent 60%),
-                      linear-gradient(120deg, var(--bg1), var(--bg2));
-          animation: bgmove 18s ease-in-out infinite alternate;
-          background-attachment: fixed;
-        }
-
-        @keyframes bgmove {
-          0%   { background-position: 0% 0%, 0% 0%; }
-          100% { background-position: 30% 10%, 100% 100%; }
-        }
-
-        .page {
-          display: grid;
-          place-items: center;
-          padding: 24px;
-          position: relative;
-          overflow: hidden;
-        }
-
-        /* Orbs decorativi */
-        .orb {
-          position: absolute;
-          width: 38vmax;
-          height: 38vmax;
-          border-radius: 50%;
-          filter: blur(60px) saturate(120%);
-          opacity: 0.45;
-          pointer-events: none;
-        }
-        .orb-left {
-          left: -12vmax;
-          top: 8vmax;
-          background: radial-gradient(circle at 30% 30%, #8b5cf6, transparent 60%),
-                      radial-gradient(circle at 70% 70%, #22d3ee, transparent 60%);
-          animation: floatL 22s ease-in-out infinite;
-        }
-        .orb-right {
-          right: -12vmax;
-          bottom: -6vmax;
-          background: radial-gradient(circle at 40% 40%, #60a5fa, transparent 55%),
-                      radial-gradient(circle at 70% 70%, #34d399, transparent 60%);
-          animation: floatR 26s ease-in-out infinite;
-        }
-        @keyframes floatL { 50% { transform: translateY(-20px) translateX(10px); } }
-        @keyframes floatR { 50% { transform: translateY(24px) translateX(-8px); } }
-
-        /* Card */
-        .card {
-          width: 100%;
-          max-width: 720px;
-          background: var(--card);
-          backdrop-filter: blur(8px);
-          box-shadow: var(--shadow);
-          border: 1px solid var(--border);
-          border-radius: 22px;
-          padding: 18px 18px 12px;
-        }
-
-        .card__head {
-          display: flex;
-          align-items: center;
-          gap: 12px;
-          padding: 6px 6px 10px;
-          border-bottom: 1px solid var(--border);
-        }
-        .logo {
-          width: 34px; height: 34px;
-          display: grid; place-items: center;
-          border-radius: 10px;
-          background: linear-gradient(135deg, #fef3c7, #fde68a);
-          border: 1px solid #facc15;
-        }
-        .titles h1 {
-          margin: 0; font-size: 18px; line-height: 1.2;
-        }
-        .titles p {
-          margin: 2px 0 0 0; font-size: 13px; color: var(--muted);
-        }
-
-        /* Chat */
-        .chat {
-          height: min(54vh, 460px);
-          overflow: auto;
-          padding: 12px 6px 8px;
-          display: flex;
-          flex-direction: column;
-          gap: 10px;
-        }
-        .row {
-          display: flex;
-          align-items: flex-start;
-          gap: 8px;
-          max-width: 85%;
-        }
-        .row.user { margin-left: auto; justify-content: flex-end; }
-        .row.user .bubble { background: var(--user); border-color: #cffafe; }
-        .row.ai .bubble { background: var(--ai); border-color: #ddd6fe; }
-
-        .avatar {
-          width: 28px; height: 28px;
-          border-radius: 50%;
-          display: grid; place-items: center;
-          background: #ffffff;
-          border: 1px solid var(--border);
-          flex: 0 0 28px;
-        }
-
-        .bubble {
-          border: 1px solid var(--border);
-          border-radius: 12px;
-          padding: 10px 12px;
-          line-height: 1.45;
-          word-break: break-word;
-          box-shadow: 0 2px 0 rgba(0,0,0,0.03);
-        }
-
-        /* Indicatori di digitazione */
-        .typing {
-          display: inline-flex;
-          align-items: center;
-          gap: 6px;
-        }
-        .dot {
-          width: 6px; height: 6px; border-radius: 50%;
-          background: #9ca3af;
-          animation: blink 1.2s infinite;
-        }
-        .dot:nth-child(2){ animation-delay: .15s; }
-        .dot:nth-child(3){ animation-delay: .3s; }
-        @keyframes blink {
-          0%, 80%, 100% { opacity: .2; transform: translateY(0); }
-          40% { opacity: 1; transform: translateY(-2px); }
-        }
-
-        /* Form */
-        .form {
-          display: grid;
-          grid-template-columns: 1fr auto;
-          gap: 10px;
-          padding: 8px 4px 10px;
-        }
-        .form input {
-          height: 42px;
-          border-radius: 10px;
-          border: 1px solid var(--border);
-          padding: 0 12px;
-          outline: none;
-        }
-        .form input:focus { box-shadow: 0 0 0 3px rgba(37,99,235,.15); }
-        .form button {
-          height: 42px;
-          min-width: 86px;
-          border: 0;
-          border-radius: 10px;
-          background: var(--btn);
-          color: var(--btnText);
-          font-weight: 600;
-          cursor: pointer;
-        }
-        .form button[disabled] { opacity: .7; cursor: default; }
-
-        /* Coffee */
-        .coffee {
-          display: inline-block;
-          margin: 4px auto 2px;
-          padding: 10px 14px;
-          border-radius: 10px;
-          border: 1px solid #facc15;
-          background: linear-gradient(180deg, #fde68a, #fbbf24);
-          color: #3b2f0b;
-          font-weight: 700;
-          text-decoration: none;
-          text-align: center;
-          box-shadow: 0 6px 0 #d97706;
-        }
-        .coffee:active { transform: translateY(1px); box-shadow: 0 5px 0 #d97706; }
-
-        .foot {
-          text-align: center;
-          color: var(--muted);
-          font-size: 12px;
-          padding-top: 8px;
-        }
-
-        /* Mobile */
-        @media (max-width: 600px) {
-          .card { padding: 14px 14px 10px; border-radius: 18px; }
-          .chat { height: 48vh; }
-          .row { max-width: 100%; }
-          .orb-left, .orb-right { display: none; }
-        }
-      `}</style>
+          <div
+            style={{
+              textAlign: "center",
+              fontSize: 12,
+              color: "#6b7a90",
+              paddingTop: 2,
+            }}
+          >
+            Creato da Coach Vins · MindMate AI
+          </div>
+        </div>
+      </div>
     </main>
   );
 }
