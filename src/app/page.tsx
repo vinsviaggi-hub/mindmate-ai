@@ -1,26 +1,28 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 type Msg = { sender: "ai" | "user"; text: string };
 
 export default function Home() {
+  // Stato chat
   const [messages, setMessages] = useState<Msg[]>([
     { sender: "ai", text: "Ciao 👋 sono MindMate, il tuo coach motivazionale. Come ti senti oggi?" },
   ]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
-  const [introVisible, setIntroVisible] = useState(true);
+  const endRef = useRef<HTMLDivElement | null>(null);
 
-  // effetto intro breve
+  // Auto–scroll all’ultimo messaggio
   useEffect(() => {
-    const t = setTimeout(() => setIntroVisible(false), 500);
-    return () => clearTimeout(t);
-  }, []);
+    endRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages, loading]);
 
-  async function sendMessage(e?: React.FormEvent) {
+  // Invia messaggio
+  async function sendMessage(e?: React.FormEvent<HTMLFormElement>) {
     e?.preventDefault();
     if (!input.trim() || loading) return;
+
     const userMsg: Msg = { sender: "user", text: input.trim() };
     setMessages((prev) => [...prev, userMsg]);
     setInput("");
@@ -32,10 +34,12 @@ export default function Home() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ message: userMsg.text }),
       });
+
       const data = await res.json();
-      const reply: Msg = { sender: "ai", text: data.reply || "Posso aiutarti in altro modo? 💬" };
-      setMessages((prev) => [...prev, reply]);
-    } catch {
+      const reply = (data?.reply as string) || "Posso aiutarti in altro modo? 💡";
+
+      setMessages((prev) => [...prev, { sender: "ai", text: reply }]);
+    } catch (_) {
       setMessages((prev) => [...prev, { sender: "ai", text: "Errore di connessione 😅 Riprova tra poco." }]);
     } finally {
       setLoading(false);
@@ -43,225 +47,290 @@ export default function Home() {
   }
 
   return (
-    <div
-      style={{
-        minHeight: "100vh",
-        margin: 0,
-        padding: 0,
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        // sfondo gradiente + alone verticale al centro
-        background:
-          "radial-gradient(1200px 400px at 50% 20%, rgba(255,255,255,0.18) 0%, rgba(255,255,255,0) 60%), linear-gradient(120deg, #a78bfa 0%, #60a5fa 50%, #22d3ee 100%)",
-      }}
-    >
-      {/* “pannelli” laterali decorativi molto soft */}
-      <div
-        aria-hidden
-        style={{
-          position: "fixed",
-          inset: 0,
-          pointerEvents: "none",
-          background:
-            "radial-gradient(600px 400px at 10% 80%, rgba(255,255,255,0.15) 0%, rgba(255,255,255,0) 70%), radial-gradient(600px 400px at 90% 20%, rgba(255,255,255,0.12) 0%, rgba(255,255,255,0) 70%)",
-        }}
-      />
+    <main className="page">
+      {/* Decorazioni ai lati */}
+      <div className="orb orb-left" aria-hidden />
+      <div className="orb orb-right" aria-hidden />
 
-      <main
-        style={{
-          width: "min(760px, 92vw)",
-          padding: "28px",
-          borderRadius: 18,
-          backdropFilter: "blur(12px)",
-          WebkitBackdropFilter: "blur(12px)",
-          background: "rgba(255,255,255,0.28)",
-          boxShadow: "0 12px 40px rgba(0,0,0,0.18)",
-          border: "1px solid rgba(255,255,255,0.45)",
-        }}
-      >
-        {/* Header */}
-        <div style={{ textAlign: "center", marginBottom: 18 }}>
-          <div
-            style={{
-              width: 40,
-              height: 40,
-              margin: "0 auto 8px",
-              borderRadius: "50%",
-              display: "grid",
-              placeItems: "center",
-              background: "linear-gradient(135deg,#ffffff,#dbeafe)",
-              border: "1px solid rgba(0,0,0,0.06)",
-            }}
-          >
-            <span role="img" aria-label="cloud">
-              ☁️
-            </span>
+      {/* Card chat */}
+      <section className="card" role="region" aria-label="MindMate AI chat">
+        <header className="card__head">
+          <div className="logo">💭</div>
+          <div className="titles">
+            <h1>MindMate AI</h1>
+            <p>Il tuo coach motivazionale personale</p>
           </div>
-          <h1
-            style={{
-              margin: 0,
-              fontSize: 24,
-              lineHeight: 1.2,
-              letterSpacing: 0.3,
-              color: "#0b1220",
-              fontWeight: 700,
-            }}
-          >
-            MindMate AI
-          </h1>
-          <p style={{ margin: "6px 0 0", color: "#1f2a44", opacity: 0.9 }}>
-            Il tuo coach motivazionale personale
-          </p>
+        </header>
+
+        <div className="chat" role="log" aria-live="polite">
+          {messages.map((m, i) => (
+            <div key={i} className={`row ${m.sender}`}>
+              <div className="avatar" aria-hidden>
+                {m.sender === "ai" ? "✨" : "🙂"}
+              </div>
+              <div className="bubble">{m.text}</div>
+            </div>
+          ))}
+
+          {loading && (
+            <div className="row ai">
+              <div className="avatar" aria-hidden>✨</div>
+              <div className="bubble typing">
+                <span className="dot" />
+                <span className="dot" />
+                <span className="dot" />
+              </div>
+            </div>
+          )}
+
+          <div ref={endRef} />
         </div>
 
-        {/* Chat box */}
-        <div
-          style={{
-            background: "rgba(255,255,255,0.65)",
-            border: "1px solid rgba(0,0,0,0.06)",
-            borderRadius: 14,
-            height: 360,
-            overflowY: "auto",
-            padding: 14,
-            boxShadow: "inset 0 1px 8px rgba(0,0,0,0.04)",
-          }}
-        >
-          <ul style={{ listStyle: "none", margin: 0, padding: 0, display: "grid", gap: 10 }}>
-            {messages.map((m, i) => (
-              <li
-                key={i}
-                style={{
-                  display: "flex",
-                  justifyContent: m.sender === "user" ? "flex-end" : "flex-start",
-                }}
-              >
-                <div
-                  style={{
-                    maxWidth: "80%",
-                    padding: "10px 12px",
-                    borderRadius: 12,
-                    lineHeight: 1.4,
-                    fontSize: 15,
-                    color: m.sender === "user" ? "#0b1220" : "#0b1220",
-                    background:
-                      m.sender === "user"
-                        ? "linear-gradient(135deg,#dbeafe,#bfdbfe)"
-                        : "linear-gradient(135deg,#f8fafc,#ffffff)",
-                    border: "1px solid rgba(0,0,0,0.06)",
-                    boxShadow: "0 2px 6px rgba(0,0,0,0.06)",
-                    wordBreak: "break-word",
-                  }}
-                >
-                  {m.text}
-                </div>
-              </li>
-            ))}
-            {loading && (
-              <li>
-                <div
-                  style={{
-                    width: 56,
-                    height: 26,
-                    borderRadius: 12,
-                    background: "linear-gradient(135deg,#f8fafc,#ffffff)",
-                    border: "1px solid rgba(0,0,0,0.06)",
-                    display: "grid",
-                    placeItems: "center",
-                    color: "#64748b",
-                    fontSize: 12,
-                  }}
-                >
-                  …
-                </div>
-              </li>
-            )}
-          </ul>
-        </div>
-
-        {/* Input + invio */}
-        <form onSubmit={sendMessage} style={{ display: "flex", gap: 10, marginTop: 12 }}>
+        <form className="form" onSubmit={sendMessage}>
           <input
             value={input}
             onChange={(e) => setInput(e.target.value)}
             placeholder="Scrivi qui…"
-            aria-label="Scrivi qui"
-            style={{
-              flex: 1,
-              padding: "12px 14px",
-              borderRadius: 12,
-              border: "1px solid rgba(0,0,0,0.08)",
-              background: "rgba(255,255,255,0.92)",
-              outline: "none",
-              fontSize: 15,
-            }}
-          />
-          <button
-            type="submit"
+            aria-label="Scrivi il tuo messaggio"
             disabled={loading}
-            style={{
-              padding: "12px 18px",
-              borderRadius: 12,
-              border: "none",
-              background: loading
-                ? "linear-gradient(135deg,#a5b4fc,#93c5fd)"
-                : "linear-gradient(135deg,#6366f1,#06b6d4)",
-              color: "#fff",
-              fontWeight: 700,
-              cursor: loading ? "not-allowed" : "pointer",
-              transition: "transform .08s ease",
-            }}
-            onMouseDown={(e) => (e.currentTarget.style.transform = "scale(0.98)")}
-            onMouseUp={(e) => (e.currentTarget.style.transform = "scale(1)")}
-          >
-            {loading ? "Sto pensando..." : "Invia"}
+          />
+          <button type="submit" disabled={loading}>
+            {loading ? "Invio…" : "Invia"}
           </button>
         </form>
 
-        {/* CTA Buy Me a Coffee */}
-        <div style={{ textAlign: "center", marginTop: 14 }}>
-          <a
-            href="https://www.buymeacoffee.com/coachvins"
-            target="_blank"
-            rel="noopener noreferrer"
-            style={{ display: "inline-block" }}
-          >
-            <img
-              src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png"
-              alt="Buy me a coffee"
-              style={{ height: "42px", width: "152px" }}
-            />
-          </a>
-        </div>
-
-        {/* Footer piccolo */}
-        <p
-          style={{
-            textAlign: "center",
-            marginTop: 8,
-            fontSize: 12,
-            color: "#0b1220",
-            opacity: 0.7,
-          }}
+        <a
+          className="coffee"
+          href="https://www.buymeacoffee.com/coachvins"
+          target="_blank"
+          rel="noopener noreferrer"
+          aria-label="Sostieni il progetto su Buy Me a Coffee"
         >
-          Creato da Coach Vins • MindMate AI
-        </p>
-      </main>
+          ☕ Buy me a coffee
+        </a>
 
-      {/* effetto fade in al primo caricamento */}
-      {introVisible && (
-        <div
-          aria-hidden
-          style={{
-            position: "fixed",
-            inset: 0,
-            background: "rgba(255,255,255,0.4)",
-            backdropFilter: "blur(2px)",
-            WebkitBackdropFilter: "blur(2px)",
-            transition: "opacity .4s ease",
-          }}
-        />
-      )}
-    </div>
+        <footer className="foot">
+          Creato da <strong>Coach Vins</strong> · MindMate AI
+        </footer>
+      </section>
+
+      {/* STILI */}
+      <style jsx global>{`
+        :root {
+          --bg1: #a78bfa; /* viola */
+          --bg2: #60a5fa; /* azzurro */
+          --card: #ffffffee;
+          --border: #e8e8ef;
+          --text: #0f172a;
+          --muted: #6b7280;
+          --ai: #eef2ff;
+          --user: #ecfeff;
+          --btn: #2563eb;
+          --btnText: #fff;
+          --shadow: 0 20px 60px rgba(15, 23, 42, 0.18);
+        }
+
+        html, body, .page {
+          height: 100%;
+        }
+
+        body {
+          margin: 0;
+          color: var(--text);
+          font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue",
+            Arial, "Apple Color Emoji", "Segoe UI Emoji";
+          background: radial-gradient(1200px 700px at 50% -10%, rgba(255,255,255,0.45), transparent 60%),
+                      linear-gradient(120deg, var(--bg1), var(--bg2));
+          animation: bgmove 18s ease-in-out infinite alternate;
+          background-attachment: fixed;
+        }
+
+        @keyframes bgmove {
+          0%   { background-position: 0% 0%, 0% 0%; }
+          100% { background-position: 30% 10%, 100% 100%; }
+        }
+
+        .page {
+          display: grid;
+          place-items: center;
+          padding: 24px;
+          position: relative;
+          overflow: hidden;
+        }
+
+        /* Orbs decorativi */
+        .orb {
+          position: absolute;
+          width: 38vmax;
+          height: 38vmax;
+          border-radius: 50%;
+          filter: blur(60px) saturate(120%);
+          opacity: 0.45;
+          pointer-events: none;
+        }
+        .orb-left {
+          left: -12vmax;
+          top: 8vmax;
+          background: radial-gradient(circle at 30% 30%, #8b5cf6, transparent 60%),
+                      radial-gradient(circle at 70% 70%, #22d3ee, transparent 60%);
+          animation: floatL 22s ease-in-out infinite;
+        }
+        .orb-right {
+          right: -12vmax;
+          bottom: -6vmax;
+          background: radial-gradient(circle at 40% 40%, #60a5fa, transparent 55%),
+                      radial-gradient(circle at 70% 70%, #34d399, transparent 60%);
+          animation: floatR 26s ease-in-out infinite;
+        }
+        @keyframes floatL { 50% { transform: translateY(-20px) translateX(10px); } }
+        @keyframes floatR { 50% { transform: translateY(24px) translateX(-8px); } }
+
+        /* Card */
+        .card {
+          width: 100%;
+          max-width: 720px;
+          background: var(--card);
+          backdrop-filter: blur(8px);
+          box-shadow: var(--shadow);
+          border: 1px solid var(--border);
+          border-radius: 22px;
+          padding: 18px 18px 12px;
+        }
+
+        .card__head {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          padding: 6px 6px 10px;
+          border-bottom: 1px solid var(--border);
+        }
+        .logo {
+          width: 34px; height: 34px;
+          display: grid; place-items: center;
+          border-radius: 10px;
+          background: linear-gradient(135deg, #fef3c7, #fde68a);
+          border: 1px solid #facc15;
+        }
+        .titles h1 {
+          margin: 0; font-size: 18px; line-height: 1.2;
+        }
+        .titles p {
+          margin: 2px 0 0 0; font-size: 13px; color: var(--muted);
+        }
+
+        /* Chat */
+        .chat {
+          height: min(54vh, 460px);
+          overflow: auto;
+          padding: 12px 6px 8px;
+          display: flex;
+          flex-direction: column;
+          gap: 10px;
+        }
+        .row {
+          display: flex;
+          align-items: flex-start;
+          gap: 8px;
+          max-width: 85%;
+        }
+        .row.user { margin-left: auto; justify-content: flex-end; }
+        .row.user .bubble { background: var(--user); border-color: #cffafe; }
+        .row.ai .bubble { background: var(--ai); border-color: #ddd6fe; }
+
+        .avatar {
+          width: 28px; height: 28px;
+          border-radius: 50%;
+          display: grid; place-items: center;
+          background: #ffffff;
+          border: 1px solid var(--border);
+          flex: 0 0 28px;
+        }
+
+        .bubble {
+          border: 1px solid var(--border);
+          border-radius: 12px;
+          padding: 10px 12px;
+          line-height: 1.45;
+          word-break: break-word;
+          box-shadow: 0 2px 0 rgba(0,0,0,0.03);
+        }
+
+        /* Indicatori di digitazione */
+        .typing {
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
+        }
+        .dot {
+          width: 6px; height: 6px; border-radius: 50%;
+          background: #9ca3af;
+          animation: blink 1.2s infinite;
+        }
+        .dot:nth-child(2){ animation-delay: .15s; }
+        .dot:nth-child(3){ animation-delay: .3s; }
+        @keyframes blink {
+          0%, 80%, 100% { opacity: .2; transform: translateY(0); }
+          40% { opacity: 1; transform: translateY(-2px); }
+        }
+
+        /* Form */
+        .form {
+          display: grid;
+          grid-template-columns: 1fr auto;
+          gap: 10px;
+          padding: 8px 4px 10px;
+        }
+        .form input {
+          height: 42px;
+          border-radius: 10px;
+          border: 1px solid var(--border);
+          padding: 0 12px;
+          outline: none;
+        }
+        .form input:focus { box-shadow: 0 0 0 3px rgba(37,99,235,.15); }
+        .form button {
+          height: 42px;
+          min-width: 86px;
+          border: 0;
+          border-radius: 10px;
+          background: var(--btn);
+          color: var(--btnText);
+          font-weight: 600;
+          cursor: pointer;
+        }
+        .form button[disabled] { opacity: .7; cursor: default; }
+
+        /* Coffee */
+        .coffee {
+          display: inline-block;
+          margin: 4px auto 2px;
+          padding: 10px 14px;
+          border-radius: 10px;
+          border: 1px solid #facc15;
+          background: linear-gradient(180deg, #fde68a, #fbbf24);
+          color: #3b2f0b;
+          font-weight: 700;
+          text-decoration: none;
+          text-align: center;
+          box-shadow: 0 6px 0 #d97706;
+        }
+        .coffee:active { transform: translateY(1px); box-shadow: 0 5px 0 #d97706; }
+
+        .foot {
+          text-align: center;
+          color: var(--muted);
+          font-size: 12px;
+          padding-top: 8px;
+        }
+
+        /* Mobile */
+        @media (max-width: 600px) {
+          .card { padding: 14px 14px 10px; border-radius: 18px; }
+          .chat { height: 48vh; }
+          .row { max-width: 100%; }
+          .orb-left, .orb-right { display: none; }
+        }
+      `}</style>
+    </main>
   );
 }
