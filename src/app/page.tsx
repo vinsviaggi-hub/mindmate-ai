@@ -70,6 +70,18 @@ export default function Home() {
           <p>{output}</p>
         </div>
       )}
-    </main>
+<div style={{ textAlign: "center", marginTop: "30px" }}>
+  <a 
+    href="https://www.buymeacoffee.com/coachvins" 
+    target="_blank" 
+    rel="noopener noreferrer"
+  >
+    <img 
+      src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" 
+      alt="Offrimi un caffè" 
+      style={{ height: "60px", width: "217px" }}
+    />
+  </a>
+</div></main>
   );
 }
