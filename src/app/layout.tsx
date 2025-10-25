@@ -12,6 +12,12 @@ export default function RootLayout({
 }) {
   return (
     <html lang="it">
+      <head>
+        <meta
+          name="google-site-verification"
+          content="XANl7z-tEh6p6jtungMF_nNCJraLWHgkhM8EAoXkzY"
+        />
+      </head>
       <body
         style={{
           fontFamily: "Arial, sans-serif",
