@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 export default function Home() {
   const [messages, setMessages] = useState([
@@ -7,6 +7,11 @@ export default function Home() {
   ]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
+  const [introVisible, setIntroVisible] = useState(false);
+
+  useEffect(() => {
+    setTimeout(() => setIntroVisible(true), 300);
+  }, []);
 
   const sendMessage = async () => {
     if (!input.trim()) return;
@@ -35,18 +40,28 @@ export default function Home() {
     <div
       style={{
         background: "white",
-        maxWidth: "420px",
+        maxWidth: "440px",
         width: "100%",
         borderRadius: "20px",
         boxShadow: "0 8px 20px rgba(0,0,0,0.1)",
-        padding: "20px",
+        padding: "24px",
         display: "flex",
         flexDirection: "column",
         gap: "10px",
-        minHeight: "500px",
+        minHeight: "520px",
+        opacity: introVisible ? 1 : 0,
+        transform: introVisible ? "translateY(0)" : "translateY(20px)",
+        transition: "all 0.8s ease",
       }}
     >
-      <h2 style={{ textAlign: "center", color: "#444" }}>🧠 MindMate AI</h2>
+      <div style={{ textAlign: "center" }}>
+        <img src="/globo.svg" alt="MindMate Logo" style={{ width: "60px", marginBottom: "10px" }} />
+        <h2 style={{ color: "#4a67ff", marginBottom: "5px" }}>MindMate AI</h2>
+        <p style={{ color: "#777", fontSize: "14px", marginTop: 0 }}>
+          Il tuo coach motivazionale personale 💬
+        </p>
+      </div>
+
       <div
         style={{
           flex: 1,
@@ -85,6 +100,7 @@ export default function Home() {
           </div>
         )}
       </div>
+
       <div style={{ display: "flex", gap: "10px" }}>
         <input
           type="text"
