@@ -640,3 +640,4 @@ const styles: Record<string, React.CSSProperties> = {
     justifyItems: "center",
   },
 };
+import { supabase } from "@/lib/supabase";
