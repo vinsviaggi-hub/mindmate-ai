@@ -1,4 +1,4 @@
-"use client";
+ "use client";
 
 import { supabase } from "@/lib/supabase";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -175,20 +175,27 @@ useEffect(() => {
         .select("role,content")
         .eq("user_id", uid)
         .order("created_at", { ascending: true })
-        .limit(30);
+       .limit(30);
 
-      if (msgs && msgs.length) {
-        setMessages([
-          { role: "assistant", text: "Bentornato 💬 Riprendiamo da dove avevamo lasciato!" },
-          ...msgs.map(m => ({ role: m.role as "user" | "assistant", text: m.content }))
-        ]);
-} catch (e) {
-      console.error("Errore Supabase:", e);
+    if (msgs && msgs.length) {
+      setMessages([
+        { role: "assistant", text: "Bentornato 💬 Riprendiamo da dove avevamo lasciato!" },
+        ...msgs.map((m) => ({ role: m.role as "user" | "assistant", text: m.content })),
+      ]);
+    }
+  } catch (e) {
+    console.error("Errore Supabase:", e);
+  }
+  })();
+}, []);
+
+/** CHAT SEND **/
 async function sendMessage(e: React.FormEvent) {
   e.preventDefault();
   if (!text || loading) return;
 
-  setMessages((m) 
+  setMessages((m) => [...m, { role: "user", text }]);
+  setInput("");
   setLoading(true);
 
   try {
@@ -197,11 +204,20 @@ async function sendMessage(e: React.FormEvent) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ message: text }),
     });
+
     const data = await res.json();
-    setMessages((m) => [...m, { role: "assistant", text: data?.reply ?? "Posso aiutarti in altro modo?" }]);
+    setMessages((m) => [
+      ...m,
+      { role: "assistant", text: data?.reply ?? "Posso aiutarti in altro modo? 😊" },
+    ]);
+
+    // piccolo bonus per attività
     setPoints((p) => p + 1);
   } catch (e) {
-    setMessages((m) => [...m, { role: "assistant", text: "Ops, problema di rete. Riproviamo tra poco." }]);
+    setMessages((m) => [
+      ...m,
+      { role: "assistant", text: "Ops, problema di rete. Riproviamo tra poco." },
+    ]);
   } finally {
     setLoading(false);
   }
