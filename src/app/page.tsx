@@ -182,14 +182,16 @@ useEffect(() => {
           { role: "assistant", text: "Bentornato 💬 Riprendiamo da dove avevamo lasciato!" },
           ...msgs.map(m => ({ role: m.role as "user" | "assistant", text: m.content }))
         ]);
-      }
 } catch (e) {
       console.error("Errore Supabase:", e);
     }
   })();
+}, []);}
+} catch (e) {
+      console.error("Errore Supabase:", e);    }
+  })();
 })();
 }, []);
-
 async function sendMessage(e: React.FormEvent) {
   e.preventDefault();
   if (!text || loading) return;
