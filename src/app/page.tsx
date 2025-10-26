@@ -186,9 +186,6 @@ useEffect(() => {
   } catch (e) {
     console.error("Errore Supabase:", e);
   }
-  })();
-}, []);
-
 /** CHAT SEND **/
 async function sendMessage(e: React.FormEvent) {
   e.preventDefault();
