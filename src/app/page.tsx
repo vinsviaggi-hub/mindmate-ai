@@ -183,24 +183,35 @@ useEffect(() => {
           ...msgs.map(m => ({ role: m.role as "user" | "assistant", text: m.content }))
         ]);
       }
-   } catch (e) {
-    console.error("Errore Supabase:", e);
+} catch (e) {
+      console.error("Errore Supabase:", e);
+    }
+  })();
+})();
+}, []);
+
+async function sendMessage(e: React.FormEvent) {
+  e.preventDefault();
+  if (!text || loading) return;
+
+  setMessages((m) 
+  setLoading(true);
+
+  try {
+    const res = await fetch("/api/chat", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ message: text }),
+    });
+    const data = await res.json();
+    setMessages((m) => [...m, { role: "assistant", text: data?.reply ?? "Posso aiutarti in altro modo?" }]);
+    setPoints((p) => p + 1);
+  } catch (e) {
+    setMessages((m) => [...m, { role: "assistant", text: "Ops, problema di rete. Riproviamo tra poco." }]);
+  } finally {
+    setLoading(false);
   }
-})();  
-}, []);    if (!text || loading) return;
-
-    setMessages((m) => [...m, { role: "user", text }]);
-    setInput("");
-    setLoading(true);
-
-    try {
-      const res = await fetch("/api/chat", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: text }),
-      });
-      const data = await res.json();
-      setMessages((m) => [...m, { role: "assistant", text: data?.reply ?? "Posso aiutarti in altro modo? 🙂" }]);
+}      setMessages((m) => [...m, { role: "assistant", text: data?.reply ?? "Posso aiutarti in altro modo? 🙂" }]);
       // piccolo bonus per attività
       setPoints((p) => p + 1);
     } catch {
