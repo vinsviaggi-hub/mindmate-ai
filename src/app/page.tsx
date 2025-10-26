@@ -1,7 +1,7 @@
 "use client";
 
+import { supabase } from "@/lib/supabase";
 import { useEffect, useMemo, useRef, useState } from "react";
-
 /** ─────────────────────── HELPERS ─────────────────────── */
 const todayKey = () => new Date().toISOString().slice(0, 10); // YYYY-MM-DD
 const getLS = <T,>(k: string, fallback: T): T => {
@@ -69,8 +69,15 @@ export default function Home() {
   const [points, setPoints] = useState<number>(() => getLS<number>("lm_points", 0));
   const [streak, setStreak] = useState<number>(0);
   const [rewardOpen, setRewardOpen] = useState(false);
+// ID utente anonimo (salvato nel browser)
+const [userId, setUserId] = useState<string | null>(null);
 
-  /** MOOD + DIARIO **/
+function uuidv4() {
+  return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, c => {
+    const r = (Math.random() * 16) | 0, v = c === "x" ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
+}  /** MOOD + DIARIO **/
   const [moodLog, setMoodLog] = useState<Record<string, Mood>>(() =>
     getLS<Record<string, Mood>>("lm_moodLog", {})
   );
@@ -134,7 +141,53 @@ export default function Home() {
   /** CHAT SEND **/
   async function sendMessage(e?: React.FormEvent) {
     e?.preventDefault();
-    const text = input.trim();
+useEffect(() => {
+  (async () => {
+    try {
+      // 1️⃣ Crea o recupera ID utente
+      let uid = localStorage.getItem("mm_user_id");
+      if (!uid) {
+        uid = uuidv4();
+        localStorage.setItem("mm_user_id", uid);
+        await supabase.from("profiles").insert({ id: uid });
+      } else {
+        await supabase.from("profiles").upsert({ id: uid });
+      }
+      setUserId(uid);
+
+      // 2️⃣ Recupera progressi utente
+      const { data: prog } = await supabase
+        .from("progress")
+        .select("*")
+        .eq("user_id", uid)
+        .maybeSingle();
+
+      if (prog) {
+        setStreak(prog.streak ?? 0);
+        setPoints?.(prog.coins ?? 0);
+      } else {
+        await supabase.from("progress").insert({ user_id: uid, streak: 0, coins: 0 });
+      }
+
+      // 3️⃣ Recupera ultimi messaggi
+      const { data: msgs } = await supabase
+        .from("messages")
+        .select("role,content")
+        .eq("user_id", uid)
+        .order("created_at", { ascending: true })
+        .limit(30);
+
+      if (msgs && msgs.length) {
+        setMessages([
+          { role: "assistant", text: "Bentornato 💬 Riprendiamo da dove avevamo lasciato!" },
+          ...msgs.map(m => ({ role: m.role as "user" | "assistant", text: m.content }))
+        ]);
+      }
+    } catch (e) {
+      console.error("Errore Supabase:", e);
+    }
+  })();
+}, []););
     if (!text || loading) return;
 
     setMessages((m) => [...m, { role: "user", text }]);
