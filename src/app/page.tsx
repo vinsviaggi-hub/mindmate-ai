@@ -184,10 +184,6 @@ useEffect(() => {
         ]);
 } catch (e) {
       console.error("Errore Supabase:", e);
-    }
-  })();
-}, []);})();
-}, []);
 async function sendMessage(e: React.FormEvent) {
   e.preventDefault();
   if (!text || loading) return;
