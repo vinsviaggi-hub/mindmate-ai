@@ -183,12 +183,11 @@ useEffect(() => {
           ...msgs.map(m => ({ role: m.role as "user" | "assistant", text: m.content }))
         ]);
       }
-    } catch (e) {
-      console.error("Errore Supabase:", e);
-    }
-  })();
-}, []););
-    if (!text || loading) return;
+   } catch (e) {
+    console.error("Errore Supabase:", e);
+  }
+})();  
+}, []);    if (!text || loading) return;
 
     setMessages((m) => [...m, { role: "user", text }]);
     setInput("");
