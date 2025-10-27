@@ -1,53 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
-import { supabase } from "../lib/supabase";
+import { useState } from "react";
 
-/** ─────────────────────── HELPERS ─────────────────────── */
-const todayKey = () => new Date().toISOString().slice(0, 10); // YYYY-MM-DD
-const getLS = <T,>(k: string, fallback: T): T => {
-  if (typeof window === "undefined") return fallback;
-  try {
-    const v = localStorage.getItem(k);
-    return v ? (JSON.parse(v) as T) : fallback;
-  } catch {
-    return fallback;
-  }
-};
-const setLS = (k: string, v: any) => {
-  if (typeof window === "undefined") return;
-  localStorage.setItem(k, JSON.stringify(v));
-};
-
-/** ─────────────────────── SFIDE ─────────────────────── */
-const ALL_CHALLENGES = [
-  "3 minuti di respiro profondo",
-  "Scrivi 3 cose per cui sei grato",
-  "Fai 10 squat o flessioni",
-  "Bevi un bicchiere d’acqua ora",
-  "Manda un messaggio gentile a qualcuno",
-  "5 minuti senza social",
-  "Sistema una piccola cosa in casa",
-  "Fai una passeggiata breve",
-  "Concentrati su 1 obiettivo per oggi",
-  "Ascolta una canzone rilassante",
-];
-function pickTodayChallenges(d: string): string[] {
-  let seed = 0;
-  for (let i = 0; i < d.length; i++) seed = (seed * 31 + d.charCodeAt(i)) % 997;
-  const arr = [...ALL_CHALLENGES];
-  for (let i = 0; i < arr.length; i++) {
-    const j = (i + seed) % arr.length;
-    [arr[i], arr[j]] = [arr[j], arr[i]];
-  }
-  return arr.slice(0, 3);
-}
-
-/** ─────────────────────── TYPES ─────────────────────── */
-type Msg = { role: "user" | "assistant"; text: string };
-type Mood = "😄" | "🙂" | "😐" | "😕" | "😞";
-
-/** ─────────────────────── COMPONENT ─────────────────────── */
 export default function Home() {
   const TABS = ["Chat", "Diario", "Sfide", "Progressi"] as const;
   type Tab = typeof TABS[number];
@@ -154,25 +108,15 @@ export default function Home() {
     setLoading(true);
 
     try {
-      const { error: saveErr } = await supabase.from("messages").insert([
-        { role: "user", text },
-      ]);
-      if (saveErr) console.error("Errore salvataggio user:", saveErr);
-
       const res = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ message: text }),
       });
       const data = await res.json();
-
-      const reply = data?.reply ?? "Posso aiutarti in altro modo? 🙂";
-      setMessages((m) => [...m, { role: "assistant", text: reply }]);
-      await supabase.from("messages").insert([{ role: "assistant", text: reply }]);
-
-      setPoints((p) => p + 1);
-    } catch (e) {
-      setMessages((m) => [...m, { role: "assistant", text: "Ops, problema di rete. Riproviamo tra poco." }]);
+      setOutput(data.reply);
+    } catch {
+      setOutput("Errore durante la richiesta 😞");
     } finally {
       setLoading(false);
     }
@@ -210,124 +154,45 @@ export default function Home() {
   const badgeConsistency = (doneChallenges[today] || []).length >= 3;
 
   return (
-    <main style={styles.page}>
-      {/* NAV */}
-      <nav style={styles.nav}>
-        {TABS.map((t) => (
-          <button
-            key={t}
-            onClick={() => setTab(t)}
-            style={{ ...styles.tabBtn, ...(tab === t ? styles.tabActive : {}) }}
-          >
-            {t}
-          </button>
-        ))}
-      </nav>
+    <main style={{ maxWidth: 700, margin: "40px auto", textAlign: "center" }}>
+      <h1>💭 MindMate AI</h1>
+      <p>Il tuo coach motivazionale. Scrivi e ti rispondo!</p>
 
-      {/* CARD */}
-      <section style={styles.card}>
-        <header style={styles.header}>
-          <div style={styles.logoBox}>💬</div>
-          <div>
-            <h1 style={styles.h1}>LifeMate AI</h1>
-            <p style={styles.tag}>Coach personale: chat, diario, sfide, progressi</p>
-            <p style={styles.meta}>
-              🔥 Streak: <b>{streak}</b> giorno{streak === 1 ? "" : "i"} · ⭐ Punti: <b>{points}</b>
-            </p>
-          </div>
-        </header>
+      <textarea
+        value={input}
+        onChange={(e) => setInput(e.target.value)}
+        rows={4}
+        placeholder="Scrivi qui..."
+        style={{ width: "100%", padding: 10 }}
+      />
 
-        {tab === "Chat" && (
-          <>
-            <div ref={chatRef} style={styles.chatBox}>
-              {messages.map((m, i) => (
-                <div key={i} style={{ display: "flex", justifyContent: m.role === "user" ? "flex-end" : "flex-start" }}>
-                  <div style={{ ...styles.bubble, ...(m.role === "user" ? styles.bubbleUser : styles.bubbleAI) }}>
-                    {m.text}
-                  </div>
-                </div>
-              ))}
-              {loading && <div style={{ color: "#64748b", fontSize: 13 }}>MindMate sta scrivendo…</div>}
-            </div>
+      <button
+        onClick={askAI}
+        disabled={loading}
+        style={{
+          marginTop: 10,
+          padding: "10px 20px",
+          background: "#0070f3",
+          color: "#fff",
+          border: "none",
+          borderRadius: 5,
+          cursor: "pointer",
+        }}
+      >
+        {loading ? "Sto pensando..." : "Invia 💬"}
+      </button>
 
-            <form onSubmit={sendMessage} style={styles.inputRow}>
-              <input
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                placeholder="Scrivi qui…"
-                style={styles.input}
-              />
-              <button type="submit" disabled={loading} style={styles.primaryBtn}>
-                {loading ? "…" : "Invia"}
-              </button>
-            </form>
-          </>
-        )}
-
-        {tab === "Diario" && (
-          <div>
-            <textarea
-              value={journal[today] || ""}
-              onChange={(e) => setJournal((j) => ({ ...j, [today]: e.target.value }))}
-              rows={8}
-              style={styles.textarea}
-              placeholder="Scrivi qui come ti senti oggi…"
-            />
-            <button onClick={() => saveTodayNote(journal[today] || "")} style={styles.secondaryBtn}>
-              Salva nota (+2⭐)
-            </button>
-          </div>
-        )}
-
-        {tab === "Sfide" && (
-          <div>
-            <ul style={{ listStyle: "none", padding: 0 }}>
-              {todayChallenges.map((c, i) => {
-                const done = (doneChallenges[today] || []).includes(i);
-                return (
-                  <li
-                    key={i}
-                    onClick={() => toggleChallenge(i)}
-                    style={{ ...styles.challenge, ...(done ? styles.challengeDone : {}) }}
-                  >
-                    <input type="checkbox" readOnly checked={done} />
-                    <span>{c}</span>
-                  </li>
-                );
-              })}
-            </ul>
-          </div>
-        )}
-
-        {tab === "Progressi" && (
-          <div>
-            <p>📊 Streak: {streak} giorni</p>
-            <p>⭐ Punti: {points}</p>
-            <p>📔 Giorni di diario: {Object.keys(journal).length}</p>
-          </div>
-        )}
-
-        <div style={{ textAlign: "center", marginTop: 12 }}>
-          <a
-            href="https://www.buymeacoffee.com/coachvins"
-            target="_blank"
-            rel="noopener noreferrer"
-            style={styles.coffee}
-          >
-            ☕ Buy me a coffee
-          </a>
-        </div>
-      </section>
-
-      {rewardOpen && (
-        <div style={styles.modal}>
-          <div style={styles.modalCard}>
-            <h3>🎁 Premio giornaliero!</h3>
-            <p>Hai guadagnato +10 punti per la tua costanza 👏</p>
-            <button onClick={() => setRewardOpen(false)} style={styles.primaryBtn}>
-              Grazie!
-            </button>
-          </div>
+      {output && (
+        <div
+          style={{
+            marginTop: 20,
+            padding: 10,
+            border: "1px solid #ccc",
+            borderRadius: 5,
+          }}
+        >
+          <strong>Risposta:</strong>
+          <p>{output}</p>
         </div>
       )}
     </main>

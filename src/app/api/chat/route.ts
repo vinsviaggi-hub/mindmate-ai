@@ -22,14 +22,21 @@ export async function POST(req: Request) {
     if (!res.ok) {
       const errorText = await res.text();
       console.error("Errore API:", errorText);
-      return NextResponse.json({ reply: "Errore nella risposta AI 😞" }, { status: 500 });
+      return NextResponse.json(
+        { reply: "Errore nella risposta AI 😞" },
+        { status: 500 }
+      );
     }
 
     const data = await res.json();
-    const reply = data.choices[0].message.content;
+    const reply = data.choices?.[0]?.message?.content || "Nessuna risposta disponibile 😅";
+
     return NextResponse.json({ reply });
   } catch (error) {
     console.error("Errore generale:", error);
-    return NextResponse.json({ reply: "Si è verificato un errore 😢" }, { status: 500 });
+    return NextResponse.json(
+      { reply: "Errore durante la richiesta 😬" },
+      { status: 500 }
+    );
   }
 }
