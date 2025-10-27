@@ -1,8 +1,10 @@
 "use client";
 
 import { useState } from "react";
-
-export default function Home() {
+type Msg = {
+  role: "user" | "assistant";
+  text: string;
+};export default function page() {
   const TABS = ["Chat", "Diario", "Sfide", "Progressi"] as const;
   type Tab = typeof TABS[number];
   const [tab, setTab] = useState<Tab>("Chat");
