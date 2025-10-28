@@ -1,6 +1,5 @@
 "use client";
-
-import { useState, useRef } from "react";
+import { getLS } from "../lib/utils";import { useState, useRef } from "react";
 type Msg = {
   role: "user" | "assistant";
   text: string;
