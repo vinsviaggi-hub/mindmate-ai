@@ -1,4 +1,4 @@
-// Funzione di utilità per leggere dal localStorage in modo sicuro
+// Utility sicura per leggere dal localStorage
 export function getLS<T>(key: string, defaultValue: T): T {
   if (typeof window === "undefined") return defaultValue;
   try {
