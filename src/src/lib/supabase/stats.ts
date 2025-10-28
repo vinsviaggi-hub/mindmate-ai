@@ -1,1 +1,19 @@
+import { supabaseServer } from './server'
 
+export async function getStats() {
+  const supabase = supabaseServer()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return null
+
+  // Crea il record base se non esiste
+  await supabase.from('profiles').insert({ id: user.id }).select().maybeSingle().catch(()=>{})
+  await supabase.from('user_stats').insert({ user_id: user.id }).select().maybeSingle().catch(()=>{})
+
+  const { data } = await supabase
+    .from('user_stats')
+    .select('current_streak,longest_streak,coins,last_checkin')
+    .eq('user_id', user.id)
+    .maybeSingle()
+
+  return data
+}
