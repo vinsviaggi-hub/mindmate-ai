@@ -1,12 +1,11 @@
 "use client";
 
-import { getLS } from "../lib/utils";import { useState, useRef } from "react";
+import { getLS } from "../lib/utils";
+import { useState, useRef } from "react";
 type Msg = {
   role: "user" | "assistant";
   text: string;
-};
-export default function Home() {
-  const TABS = ["Chat", "Diario", "Sfide", "Progressi"] as const;
+};export default function Home() {  const TABS = ["Chat", "Diario", "Sfide", "Progressi"] as const;
   type Tab = typeof TABS[number];
   const [tab, setTab] = useState<Tab>("Chat");
 
