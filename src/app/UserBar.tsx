@@ -2,28 +2,57 @@
 import { useEffect, useState } from "react";
 import { supabaseBrowser } from "@/lib/supabase/client";
 
+type Stats = {
+  current_streak: number | null;
+  longest_streak: number | null;
+  coins: number | null;
+  last_checkin: string | null;
+};
+
 export default function UserBar() {
   const supabase = supabaseBrowser();
   const [user, setUser] = useState<any>(null);
-  const [stats, setStats] = useState<any>(null);
+  const [stats, setStats] = useState<Stats | null>(null);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => setUser(data.user));
-    fetch("/api/me").then(r => r.json()).then(setStats).catch(() => {});
+    supabase.auth.getUser().then(async ({ data }) => {
+      setUser(data.user);
+      if (data.user) {
+        // assicurati che profilo e stats esistano
+        await supabase.from("profiles").insert({ id: data.user.id }).select().maybeSingle();
+        await supabase.from("user_stats").insert({ user_id: data.user.id }).select().maybeSingle();
+        // carica stats
+        const { data: st } = await supabase
+          .from("user_stats")
+          .select("*")
+          .eq("user_id", data.user.id)
+          .maybeSingle();
+        if (st) {
+          setStats({
+            current_streak: st.current_streak,
+            longest_streak: st.longest_streak,
+            coins: st.coins,
+            last_checkin: st.last_checkin,
+          });
+        }
+      }
+    });
   }, []);
 
   const doCheckin = async () => {
     setLoading(true);
-    const res = await fetch("/api/checkin", { method: "POST" });
-    const json = await res.json();
+    const { data, error } = await supabase.rpc("perform_daily_checkin", { reward_coins: 1 });
     setLoading(false);
-    if (!res.ok) { alert(json.error || "Errore"); return; }
+    if (error) {
+      alert(error.message);
+      return;
+    }
     setStats({
-      current_streak: json.current_streak,
-      longest_streak: json.longest_streak,
-      coins: json.coins,
-      last_checkin: json.last_checkin,
+      current_streak: data?.current_streak ?? 0,
+      longest_streak: data?.longest_streak ?? 0,
+      coins: data?.coins ?? 0,
+      last_checkin: data?.last_checkin ?? null,
     });
   };
 
@@ -39,7 +68,11 @@ export default function UserBar() {
       <button onClick={doCheckin} disabled={loading} style={{ padding:"6px 10px" }}>
         {loading ? "..." : "Check-in quotidiano"}
       </button>
-      <span>• Streak: {stats?.current_streak ?? 0} • Max: {stats?.longest_streak ?? 0} • Coins: {stats?.coins ?? 0}</span>
+      <span>
+        • Streak: {stats?.current_streak ?? 0}
+        {"  "}• Max: {stats?.longest_streak ?? 0}
+        {"  "}• Coins: {stats?.coins ?? 0}
+      </span>
       <button onClick={signOut} style={{ padding:"6px 10px" }}>Esci</button>
     </div>
   );
