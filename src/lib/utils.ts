@@ -1,4 +1,4 @@
-// Utility sicura per leggere dal localStorage
+// Utility sicura per localStorage
 export function getLS<T>(key: string, defaultValue: T): T {
   if (typeof window === "undefined") return defaultValue;
   try {
@@ -7,4 +7,11 @@ export function getLS<T>(key: string, defaultValue: T): T {
   } catch {
     return defaultValue;
   }
+}
+
+export function setLS<T>(key: string, value: T) {
+  if (typeof window === "undefined") return;
+  try {
+    localStorage.setItem(key, JSON.stringify(value));
+  } catch {}
 }
