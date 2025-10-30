@@ -1,7 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
-import { supabaseBrowser } from "@/lib/supabase/client";
-
+import supabase from "@/lib/supabase";
 type Stats = {
   current_streak: number | null;
   longest_streak: number | null;
