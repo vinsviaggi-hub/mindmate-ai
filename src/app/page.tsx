@@ -4,7 +4,6 @@ import { useState, useRef, useEffect, useMemo } from "react";
 import { getLS, setLS } from "@/lib/utils";
 import supabase from "@/lib/supabase";
 import UserBar from "./UserBar";
-
 type Mood = "felice" | "ok" | "stanco" | "triste";
 type Msg = { role: "user" | "assistant"; text: string };
 
