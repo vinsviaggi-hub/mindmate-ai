@@ -1,19 +1,12 @@
 "use client";
 
 import { useState, useRef, useEffect, useMemo } from "react";
-import { getLS } from "@/lib/utils";
-import { supabase } from "@/lib/supabase"; // hai già questo file
+import { getLS, setLS } from "@/lib/utils";
+import { supabase } from "@/lib/supabase";
+import UserBar from "./UserBar";
 
-// Tipi/minime utilità mancanti
 type Mood = "felice" | "ok" | "stanco" | "triste";
-
-// Se preferisci puoi spostarla in utils.ts
-function setLS<T>(key: string, value: T) {
-  if (typeof window === "undefined") return;
-  try {
-    localStorage.setItem(key, JSON.stringify(value));
-  } catch {}
-}
+type Msg = { role: "user" | "assistant"; text: string };
 
 function todayKey() {
   return new Date().toISOString().slice(0, 10); // YYYY-MM-DD
@@ -21,14 +14,8 @@ function todayKey() {
 
 function pickTodayChallenges(seed: string) {
   // stub semplice: 3 sfide fisse; puoi sostituire con logica random/seed-based
-  return [
-    "5 minuti di respirazione",
-    "Scrivi 3 cose positive",
-    "Fai 10 squat",
-  ];
+  return ["5 minuti di respirazione", "Scrivi 3 cose positive", "Fai 10 squat"];
 }
-
-type Msg = { role: "user" | "assistant"; text: string };
 
 export default function Home() {
   const TABS = ["Chat", "Diario", "Sfide", "Progressi"] as const;
@@ -40,6 +27,7 @@ export default function Home() {
   ]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
+  const [output, setOutput] = useState<string>("");
   const chatRef = useRef<HTMLDivElement>(null);
 
   const [points, setPoints] = useState<number>(() => getLS("lm_points", 0));
@@ -59,8 +47,6 @@ export default function Home() {
     () => getLS("lm_challengesDone", {})
   );
 
-  const [output, setOutput] = useState<string>(""); // mancava
-
   /** AUTO SCROLL CHAT **/
   useEffect(() => {
     chatRef.current?.scrollTo({
@@ -69,7 +55,7 @@ export default function Home() {
     });
   }, [messages, loading]);
 
-  /** LOAD MESSAGES FROM SUPABASE **/
+  /** LOAD MESSAGES FROM SUPABASE (opzionale) **/
   useEffect(() => {
     (async () => {
       const { data, error } = await supabase
@@ -85,17 +71,14 @@ export default function Home() {
 
       if (data && data.length > 0) {
         setMessages([
-          {
-            role: "assistant",
-            text: "Bentornato 💬 Riprendiamo da dove avevamo lasciato!",
-          },
-          ...data.map((m: any) => ({ role: m.role, text: m.text })) as Msg[],
+          { role: "assistant", text: "Bentornato 💬 Riprendiamo da dove avevamo lasciato!" },
+          ...(data.map((m: any) => ({ role: m.role, text: m.text })) as Msg[]),
         ]);
       }
     })();
   }, []);
 
-  /** DAILY REWARD + STREAK **/
+  /** DAILY REWARD + STREAK (solo localStorage) **/
   useEffect(() => {
     const now = new Date();
     const todayOnly = now.toISOString().slice(0, 10);
@@ -151,8 +134,9 @@ export default function Home() {
         body: JSON.stringify({ message: text }),
       });
       const data = await res.json();
-      setOutput(data.reply);
-      setMessages((m) => [...m, { role: "assistant", text: data.reply }]);
+      const reply = data.reply as string;
+      setOutput(reply);
+      setMessages((m) => [...m, { role: "assistant", text: reply }]);
     } catch {
       setOutput("Errore durante la richiesta 😞");
     } finally {
@@ -193,33 +177,56 @@ export default function Home() {
 
   return (
     <main style={{ maxWidth: 700, margin: "40px auto", textAlign: "center" }}>
+      {/* Barra utente: login + check-in */}
+      <UserBar />
+
       <h1>💭 MindMate AI</h1>
       <p>Il tuo coach motivazionale. Scrivi e ti rispondo!</p>
 
-      <textarea
-        value={input}
-        onChange={(e) => setInput(e.target.value)}
-        rows={4}
-        placeholder="Scrivi qui..."
-        style={{ width: "100%", padding: 10 }}
-      />
+      {/* Chat log */}
+      <div ref={chatRef} style={styles.chatBox}>
+        {messages.map((m, i) => (
+          <div
+            key={i}
+            style={{
+              ...styles.bubble,
+              ...(m.role === "assistant" ? styles.bubbleAI : styles.bubbleUser),
+              margin: m.role === "assistant" ? "8px 0 8px auto" : "8px auto 8px 0",
+            }}
+          >
+            {m.text}
+          </div>
+        ))}
+        {loading && <div style={{ ...styles.bubble, ...styles.bubbleAI }}>Sto pensando…</div>}
+      </div>
 
-      <button
-        onClick={sendMessage} // <— prima chiamavi askAI
-        disabled={loading}
-        style={{
-          marginTop: 10,
-          padding: "10px 20px",
-          background: "#0070f3",
-          color: "#fff",
-          border: "none",
-          borderRadius: 5,
-          cursor: "pointer",
-        }}
-      >
-        {loading ? "Sto pensando..." : "Invia 💬"}
-      </button>
+      {/* Input */}
+      <form onSubmit={sendMessage} style={{ marginTop: 10 }}>
+        <textarea
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          rows={3}
+          placeholder="Scrivi qui..."
+          style={{ width: "100%", padding: 10 }}
+        />
+        <button
+          type="submit"
+          disabled={loading}
+          style={{
+            marginTop: 10,
+            padding: "10px 20px",
+            background: "#0070f3",
+            color: "#fff",
+            border: "none",
+            borderRadius: 5,
+            cursor: "pointer",
+          }}
+        >
+          {loading ? "Sto pensando..." : "Invia 💬"}
+        </button>
+      </form>
 
+      {/* Ultima risposta “in evidenza” */}
       {output && (
         <div
           style={{
