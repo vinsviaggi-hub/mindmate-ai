@@ -2,8 +2,10 @@
 
 import { useState, useRef, useEffect, useMemo } from "react";
 import { getLS, setLS } from "@/lib/utils";
-import supabase from "@/lib/supabase";
+import { supabaseBrowser } from "@/lib/supabase/client";
 import UserBar from "./UserBar";
+import Link from "next/link";
+
 type Mood = "felice" | "ok" | "stanco" | "triste";
 type Msg = { role: "user" | "assistant"; text: string };
 
@@ -12,11 +14,13 @@ function todayKey() {
 }
 
 function pickTodayChallenges(seed: string) {
-  // stub semplice: 3 sfide fisse; puoi sostituire con logica random/seed-based
+  // sfide esempio — puoi cambiarle a piacere
   return ["5 minuti di respirazione", "Scrivi 3 cose positive", "Fai 10 squat"];
 }
 
 export default function Home() {
+  const supabase = supabaseBrowser();
+
   const TABS = ["Chat", "Diario", "Sfide", "Progressi"] as const;
   type Tab = (typeof TABS)[number];
   const [tab, setTab] = useState<Tab>("Chat");
@@ -75,9 +79,9 @@ export default function Home() {
         ]);
       }
     })();
-  }, []);
+  }, [supabase]);
 
-  /** DAILY REWARD + STREAK (solo localStorage) **/
+  /** DAILY REWARD (solo locale per fallback) **/
   useEffect(() => {
     const now = new Date();
     const todayOnly = now.toISOString().slice(0, 10);
@@ -107,7 +111,6 @@ export default function Home() {
       localStorage.setItem("lm_lastClaim", todayStr);
       setRewardOpen(true);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   /** PERSISTENZA **/
@@ -143,39 +146,25 @@ export default function Home() {
     }
   }
 
-  /** MOOD TRACKER **/
-  function setTodayMood(m: Mood) {
-    setMoodLog((prev) => ({ ...prev, [today]: m }));
-    setPoints((p) => p + 3);
-  }
-
-  /** DIARIO **/
-  function saveTodayNote(text: string) {
-    setJournal((j) => ({ ...j, [today]: text }));
-    setPoints((p) => p + 2);
-  }
-
-  /** SFIDE **/
-  function toggleChallenge(i: number) {
-    const todayDone = new Set(doneChallenges[today] || []);
-    let delta = 0;
-    if (todayDone.has(i)) {
-      todayDone.delete(i);
-      delta = -5;
-    } else {
-      todayDone.add(i);
-      delta = +5;
-    }
-    setDoneChallenges((prev) => ({ ...prev, [today]: Array.from(todayDone) }));
-    setPoints((p) => Math.max(0, p + delta));
-  }
-
-  const badgeWeek = streak >= 7;
-  const badgePoints = points >= 100;
-  const badgeConsistency = (doneChallenges[today] || []).length >= 3;
-
   return (
     <main style={{ maxWidth: 700, margin: "40px auto", textAlign: "center" }}>
+      {/* Link di accesso in alto */}
+      <div style={{ textAlign: "right", marginBottom: "1rem" }}>
+        <Link
+          href="/login"
+          style={{
+            color: "#0070f3",
+            fontWeight: "bold",
+            textDecoration: "none",
+            padding: "6px 12px",
+            border: "1px solid #0070f3",
+            borderRadius: "8px",
+          }}
+        >
+          Accedi
+        </Link>
+      </div>
+
       {/* Barra utente: login + check-in */}
       <UserBar />
 
@@ -245,45 +234,6 @@ export default function Home() {
 
 /** ─────────────────────── STILI ─────────────────────── */
 const styles: Record<string, React.CSSProperties> = {
-  page: {
-    minHeight: "100vh",
-    background:
-      "radial-gradient(60% 60% at 50% 0%, #e9eaff 0%, #f8fafc 60%, #ffffff 100%)",
-    display: "grid",
-    placeItems: "center",
-    padding: 16,
-  },
-  nav: { display: "flex", gap: 8, marginBottom: 10 },
-  tabBtn: {
-    padding: "8px 12px",
-    borderRadius: 999,
-    border: "1px solid #e5e7eb",
-    background: "#fff",
-    cursor: "pointer",
-  },
-  tabActive: { background: "#2563eb", color: "#fff" },
-  card: {
-    width: "100%",
-    maxWidth: 760,
-    background: "white",
-    borderRadius: 18,
-    border: "1px solid #e5e7eb",
-    padding: 20,
-    boxShadow: "0 8px 20px rgba(0,0,0,0.05)",
-  },
-  header: { display: "flex", alignItems: "center", gap: 10, marginBottom: 8 },
-  logoBox: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
-    display: "grid",
-    placeItems: "center",
-    background: "#ffe08a",
-    border: "1px solid #f6d76b",
-  },
-  h1: { margin: 0, fontSize: 18, fontWeight: 800 },
-  tag: { fontSize: 12, margin: 0, color: "#475569" },
-  meta: { fontSize: 12, color: "#334155", margin: "4px 0 0" },
   chatBox: {
     height: 360,
     overflow: "auto",
@@ -301,65 +251,4 @@ const styles: Record<string, React.CSSProperties> = {
   },
   bubbleAI: { background: "#f1f5f9" },
   bubbleUser: { background: "#e0f2fe" },
-  inputRow: { display: "grid", gridTemplateColumns: "1fr auto", gap: 8 },
-  input: {
-    height: 42,
-    borderRadius: 10,
-    border: "1px solid #d9e1f2",
-    padding: "0 12px",
-  },
-  primaryBtn: {
-    height: 42,
-    padding: "0 14px",
-    borderRadius: 10,
-    border: "none",
-    background: "#2563eb",
-    color: "#fff",
-  },
-  secondaryBtn: {
-    height: 40,
-    borderRadius: 10,
-    border: "1px solid #c7d2fe",
-    background: "#eef2ff",
-  },
-  textarea: {
-    width: "100%",
-    borderRadius: 12,
-    border: "1px solid #d9e1f2",
-    padding: 12,
-  },
-  challenge: {
-    display: "flex",
-    alignItems: "center",
-    gap: 10,
-    padding: "10px 12px",
-    borderRadius: 12,
-    border: "1px solid #e5e7eb",
-    background: "#ffffff",
-  },
-  challengeDone: { background: "#ecfeff", borderColor: "#bae6fd" },
-  coffee: {
-    display: "inline-block",
-    textDecoration: "none",
-    background: "#ffd143",
-    border: "1px solid #f2bf2c",
-    color: "#1f2937",
-    fontWeight: 800,
-    padding: "10px 14px",
-    borderRadius: 10,
-  },
-  modal: {
-    position: "fixed",
-    inset: 0,
-    background: "rgba(0,0,0,.55)",
-    display: "grid",
-    placeItems: "center",
-  },
-  modalCard: {
-    width: "min(90vw, 360px)",
-    background: "#fff",
-    borderRadius: 14,
-    padding: 18,
-    textAlign: "center",
-  },
 };
