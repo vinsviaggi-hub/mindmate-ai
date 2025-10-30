@@ -1,12 +1,38 @@
 "use client";
 
+import { useState, useRef, useEffect, useMemo } from "react";
 import { getLS } from "@/lib/utils";
-import { useState, useRef } from "react";
-type Msg = {
-  role: "user" | "assistant";
-  text: string;
-};export default function Home() {  const TABS = ["Chat", "Diario", "Sfide", "Progressi"] as const;
-  type Tab = typeof TABS[number];
+import { supabase } from "@/lib/supabase"; // hai già questo file
+
+// Tipi/minime utilità mancanti
+type Mood = "felice" | "ok" | "stanco" | "triste";
+
+// Se preferisci puoi spostarla in utils.ts
+function setLS<T>(key: string, value: T) {
+  if (typeof window === "undefined") return;
+  try {
+    localStorage.setItem(key, JSON.stringify(value));
+  } catch {}
+}
+
+function todayKey() {
+  return new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+}
+
+function pickTodayChallenges(seed: string) {
+  // stub semplice: 3 sfide fisse; puoi sostituire con logica random/seed-based
+  return [
+    "5 minuti di respirazione",
+    "Scrivi 3 cose positive",
+    "Fai 10 squat",
+  ];
+}
+
+type Msg = { role: "user" | "assistant"; text: string };
+
+export default function Home() {
+  const TABS = ["Chat", "Diario", "Sfide", "Progressi"] as const;
+  type Tab = (typeof TABS)[number];
   const [tab, setTab] = useState<Tab>("Chat");
 
   const [messages, setMessages] = useState<Msg[]>([
@@ -33,9 +59,14 @@ type Msg = {
     () => getLS("lm_challengesDone", {})
   );
 
+  const [output, setOutput] = useState<string>(""); // mancava
+
   /** AUTO SCROLL CHAT **/
   useEffect(() => {
-    chatRef.current?.scrollTo({ top: chatRef.current.scrollHeight, behavior: "smooth" });
+    chatRef.current?.scrollTo({
+      top: chatRef.current.scrollHeight,
+      behavior: "smooth",
+    });
   }, [messages, loading]);
 
   /** LOAD MESSAGES FROM SUPABASE **/
@@ -54,8 +85,11 @@ type Msg = {
 
       if (data && data.length > 0) {
         setMessages([
-          { role: "assistant", text: "Bentornato 💬 Riprendiamo da dove avevamo lasciato!" },
-          ...data.map((m: any) => ({ role: m.role, text: m.text })),
+          {
+            role: "assistant",
+            text: "Bentornato 💬 Riprendiamo da dove avevamo lasciato!",
+          },
+          ...data.map((m: any) => ({ role: m.role, text: m.text })) as Msg[],
         ]);
       }
     })();
@@ -85,12 +119,13 @@ type Msg = {
 
     const todayStr = new Date().toDateString();
     if (lastClaim !== todayStr) {
-      const newPts = points + 10;
+      const newPts = (points ?? 0) + 10;
       setPoints(newPts);
       setLS("lm_points", newPts);
       localStorage.setItem("lm_lastClaim", todayStr);
       setRewardOpen(true);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   /** PERSISTENZA **/
@@ -117,6 +152,7 @@ type Msg = {
       });
       const data = await res.json();
       setOutput(data.reply);
+      setMessages((m) => [...m, { role: "assistant", text: data.reply }]);
     } catch {
       setOutput("Errore durante la richiesta 😞");
     } finally {
@@ -169,7 +205,7 @@ type Msg = {
       />
 
       <button
-        onClick={askAI}
+        onClick={sendMessage} // <— prima chiamavi askAI
         disabled={loading}
         style={{
           marginTop: 10,
@@ -205,13 +241,20 @@ type Msg = {
 const styles: Record<string, React.CSSProperties> = {
   page: {
     minHeight: "100vh",
-    background: "radial-gradient(60% 60% at 50% 0%, #e9eaff 0%, #f8fafc 60%, #ffffff 100%)",
+    background:
+      "radial-gradient(60% 60% at 50% 0%, #e9eaff 0%, #f8fafc 60%, #ffffff 100%)",
     display: "grid",
     placeItems: "center",
     padding: 16,
   },
   nav: { display: "flex", gap: 8, marginBottom: 10 },
-  tabBtn: { padding: "8px 12px", borderRadius: 999, border: "1px solid #e5e7eb", background: "#fff", cursor: "pointer" },
+  tabBtn: {
+    padding: "8px 12px",
+    borderRadius: 999,
+    border: "1px solid #e5e7eb",
+    background: "#fff",
+    cursor: "pointer",
+  },
   tabActive: { background: "#2563eb", color: "#fff" },
   card: {
     width: "100%",
@@ -253,10 +296,32 @@ const styles: Record<string, React.CSSProperties> = {
   bubbleAI: { background: "#f1f5f9" },
   bubbleUser: { background: "#e0f2fe" },
   inputRow: { display: "grid", gridTemplateColumns: "1fr auto", gap: 8 },
-  input: { height: 42, borderRadius: 10, border: "1px solid #d9e1f2", padding: "0 12px" },
-  primaryBtn: { height: 42, padding: "0 14px", borderRadius: 10, border: "none", background: "#2563eb", color: "#fff" },
-  secondaryBtn: { height: 40, borderRadius: 10, border: "1px solid #c7d2fe", background: "#eef2ff" },
-  textarea: { width: "100%", borderRadius: 12, border: "1px solid #d9e1f2", padding: 12 },
+  input: {
+    height: 42,
+    borderRadius: 10,
+    border: "1px solid #d9e1f2",
+    padding: "0 12px",
+  },
+  primaryBtn: {
+    height: 42,
+    padding: "0 14px",
+    borderRadius: 10,
+    border: "none",
+    background: "#2563eb",
+    color: "#fff",
+  },
+  secondaryBtn: {
+    height: 40,
+    borderRadius: 10,
+    border: "1px solid #c7d2fe",
+    background: "#eef2ff",
+  },
+  textarea: {
+    width: "100%",
+    borderRadius: 12,
+    border: "1px solid #d9e1f2",
+    padding: 12,
+  },
   challenge: {
     display: "flex",
     alignItems: "center",
