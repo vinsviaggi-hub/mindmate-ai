@@ -24,7 +24,7 @@ export default function LoginPage() {
     <main style={{ maxWidth: 420, margin: "80px auto", padding: 24 }}>
       <h1>Accedi a MindMate AI</h1>
       {sent ? (
-        <p>Controlla la tua email per il link.</p>
+        <p>Controlla la tua email per il link di accesso.</p>
       ) : (
         <form onSubmit={signInMagic}>
           <input
