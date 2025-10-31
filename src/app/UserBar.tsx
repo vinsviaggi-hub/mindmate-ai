@@ -15,14 +15,13 @@ export default function UserBar() {
   const [stats, setStats] = useState<Stats | null>(null);
   const [loading, setLoading] = useState(false);
 
-  // carica utente + stats direttamente dal client
   useEffect(() => {
     (async () => {
       const { data: u } = await supabase.auth.getUser();
       setUser(u.user ?? null);
       if (!u.user) return;
 
-      // crea record base se mancano
+      // crea record minimi se mancano
       await supabase.from("profiles").insert({ id: u.user.id }).select().maybeSingle().catch(() => {});
       await supabase.from("user_stats").insert({ user_id: u.user.id }).select().maybeSingle().catch(() => {});
 
